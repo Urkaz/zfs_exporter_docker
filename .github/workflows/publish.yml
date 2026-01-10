@@ -1,0 +1,54 @@
+name: Build and Publish Docker Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ZFS_EXPORTER_VERSION
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read ZFS_EXPORTER_VERSION
+        run: |
+          echo "ZFS_EXPORTER_VERSION=$(cat ZFS_EXPORTER_VERSION | tr -d '\n')" >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if image tag already exists
+        run: |
+          if docker manifest inspect ghcr.io/urkaz/zfs_exporter:${{ env.ZFS_EXPORTER_VERSION }} > /dev/null 2>&1; then
+            echo "Image tag ${{ env.ZFS_EXPORTER_VERSION }} already exists. Aborting."
+            exit 1
+          else
+            echo "Image tag does not exist. Continuing."
+          fi
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg ZFS_EXPORTER_VERSION=${{ env.ZFS_EXPORTER_VERSION }} \
+            -t ghcr.io/urkaz/zfs_exporter:latest \
+            -t ghcr.io/urkaz/zfs_exporter:${{ env.ZFS_EXPORTER_VERSION }} \
+            .
+
+      - name: Push image
+        run: |
+          docker push ghcr.io/urkaz/zfs_exporter:latest
+          docker push ghcr.io/urkaz/zfs_exporter:${{ env.ZFS_EXPORTER_VERSION }}

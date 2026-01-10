@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  zfs_exporter:
+    image: urkaz/zfs_exporter:2.3.6
+    container_name: zfs_exporter
+    ports:
+      - "9134:9134"
+    restart: unless-stopped
+    volumes:
+      - /proc:/proc:ro
+      - /sys:/sys:ro
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/zfs
+    privileged: true
+    environment:
+      - TZ=Europe/Madrid

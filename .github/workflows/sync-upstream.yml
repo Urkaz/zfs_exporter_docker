@@ -1,0 +1,54 @@
+name: Sync ZFS Exporter Upstream
+
+on:
+  schedule:
+    - cron: "0 */24 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest release
+        id: get_latest
+        run: |
+            RESPONSE=$(curl -s \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/pdf/zfs_exporter/releases/latest)
+
+            LATEST=$(echo "$RESPONSE" | jq -r '.tag_name // empty')
+
+            if [ -z "$LATEST" ]; then
+              echo "No valid release found. Skipping."
+              exit 0
+            fi
+
+            echo "version=$LATEST" >> $GITHUB_OUTPUT
+
+      - name: Read current version file
+        id: current
+        run: |
+          if [ -f ZFS_EXPORTER_VERSION ]; then
+            echo "current=$(cat ZFS_EXPORTER_VERSION)" >> $GITHUB_OUTPUT
+          else
+            echo "current=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Compare versions
+        if: steps.get_latest.outputs.version != steps.current.outputs.current
+        run: |
+          echo "New ZFS EXporter version detected: ${{ steps.get_latest.outputs.version }}"
+          echo "${{ steps.get_latest.outputs.version }}" > ZFS_EXPORTER_VERSION
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add ZFS_EXPORTER_VERSION
+          git commit -am "Sync ZFS EXporter version to ${{ steps.get_latest.outputs.version }}"
+          git push
