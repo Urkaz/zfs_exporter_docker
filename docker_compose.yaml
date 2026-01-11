@@ -16,4 +16,4 @@ services:
       - /dev/zfs
     privileged: true
     environment:
-      - TZ=Europe/Madrid
+      - TZ=Etc/UTC
